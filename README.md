@@ -4,6 +4,13 @@
 
 **An experimental Laravel API for exploring structured churn-risk assessment through an external language-model service.**
 
+## Product architecture and engineering highlights
+
+A Laravel API experiment for structured customer churn-risk assessment, with a clear boundary between request validation and model-assisted inference.
+
+- **Architecture:** The API validates a five-feature JSON input, passes it through an inference service, and returns a predictable JSON response using an OpenAI client.
+- **Distinctive engineering:** The repository demonstrates a reviewable service boundary and API contract; it does not claim a trained statistical or machine-learning model.
+
 ## Overview
 
 This repository is a small Laravel 11 experiment around accepting structured customer attributes, validating them at an API boundary and asking an external model for a churn assessment.
