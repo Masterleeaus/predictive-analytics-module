@@ -3,6 +3,7 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -17,6 +18,14 @@ return Application::configure(basePath: dirname(__DIR__))
         //
     })
     ->withExceptions(function (Exceptions $exceptions) {
+        $exceptions->renderable(function (AuthenticationException $exception, Request $request) {
+            if (str_starts_with($request->getPathInfo(), '/api/')) {
+                return response()->json([
+                    'message' => 'Unauthenticated.',
+                ], 401);
+            }
+        });
+
         $exceptions->shouldRenderJsonWhen(function (Request $request, \Throwable $throwable): bool {
             return str_starts_with($request->getPathInfo(), '/api/') || $request->expectsJson();
         });
