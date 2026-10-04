@@ -42,7 +42,14 @@ class PredictiveAnalyticsEndpointTest extends TestCase
             ->andReturn($client);
 
         $previousKey = getenv('OPENAI_API_KEY');
+        $hadEnvKey = array_key_exists('OPENAI_API_KEY', $_ENV);
+        $previousEnvKey = $_ENV['OPENAI_API_KEY'] ?? null;
+        $hadServerKey = array_key_exists('OPENAI_API_KEY', $_SERVER);
+        $previousServerKey = $_SERVER['OPENAI_API_KEY'] ?? null;
+
         putenv('OPENAI_API_KEY=test-key');
+        $_ENV['OPENAI_API_KEY'] = 'test-key';
+        $_SERVER['OPENAI_API_KEY'] = 'test-key';
 
         try {
             $response = $this->postJson('/api/predict-churn', [
@@ -57,6 +64,18 @@ class PredictiveAnalyticsEndpointTest extends TestCase
                 putenv('OPENAI_API_KEY');
             } else {
                 putenv('OPENAI_API_KEY=' . $previousKey);
+            }
+
+            if ($hadEnvKey) {
+                $_ENV['OPENAI_API_KEY'] = $previousEnvKey;
+            } else {
+                unset($_ENV['OPENAI_API_KEY']);
+            }
+
+            if ($hadServerKey) {
+                $_SERVER['OPENAI_API_KEY'] = $previousServerKey;
+            } else {
+                unset($_SERVER['OPENAI_API_KEY']);
             }
         }
 
