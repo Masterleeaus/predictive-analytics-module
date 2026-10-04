@@ -7,18 +7,24 @@ use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-class ApiAuthenticate
+class ApiAuthenticate extends Authenticate
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $request->headers->set('Accept', 'application/json');
-
         try {
-            return app(Authenticate::class)->handle($request, $next, 'sanctum');
+            return parent::handle($request, $next, 'sanctum');
         } catch (\Illuminate\Auth\AuthenticationException) {
             return response()->json([
                 'message' => 'Unauthenticated.',
             ], 401);
         }
+    }
+
+    /**
+     * API authentication must never redirect to a web login route.
+     */
+    protected function redirectTo(Request $request): ?string
+    {
+        return null;
     }
 }
