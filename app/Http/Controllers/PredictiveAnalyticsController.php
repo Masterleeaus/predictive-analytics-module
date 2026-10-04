@@ -2,52 +2,38 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\ChurnPredictionProvider;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use OpenAI;
 
 class PredictiveAnalyticsController extends Controller
 {
+    public function __construct(
+        private readonly ChurnPredictionProvider $predictionProvider,
+    ) {
+    }
+
     /**
-     * Predict customer churn using OpenAI.
+     * Predict customer churn using the configured provider.
      */
     public function predictChurn(Request $request): JsonResponse
     {
-        // Validate input data
         $validated = $request->validate([
-            'age' => 'required|numeric',
-            'avg_monthly_activity' => 'required|numeric',
-            'payment_history_score' => 'required|numeric',
-            'feature_4' => 'required|numeric',
-            'feature_5' => 'required|numeric',
+            'age' => ['required', 'numeric', 'between:0,120'],
+            'avg_monthly_activity' => ['required', 'numeric', 'min:0'],
+            'payment_history_score' => ['required', 'numeric', 'between:0,10'],
+            'feature_4' => ['required', 'numeric', 'min:0'],
+            'feature_5' => ['required', 'numeric', 'min:0'],
         ]);
 
-        // Prepare the prompt for OpenAI
-        $prompt = "
-        You are an expert data analyst. Predict customer churn based on the following data:
-        - Age: {$validated['age']}
-        - Average Monthly Activity: {$validated['avg_monthly_activity']}
-        - Payment History Score: {$validated['payment_history_score']}
-        - Feature 4: {$validated['feature_4']}
-        - Feature 5: {$validated['feature_5']}
+        $prediction = $this->predictionProvider->predict($validated);
 
-        Return the churn probability as a percentage (e.g., 78%).
-        ";
-
-        // Query OpenAI API
-        $client = OpenAI::client(env('OPENAI_API_KEY'));
-        $response = $client->completions()->create([
-            'model' => 'gpt-3.5-turbo', // Use 'gpt-4' or 'gpt-3.5-turbo' if available
-            'prompt' => $prompt,
-            'max_tokens' => 100,
-            'temperature' => 0.7,
-        ]);
-
-        // Extract prediction from the response
-        $prediction = $response['choices'][0]['text'] ?? 'Unable to generate prediction';
-
-        // Clean up response text
-        $prediction = trim($prediction);
+        if ($prediction === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Prediction provider is not configured.',
+            ], 503);
+        }
 
         return response()->json([
             'success' => true,
