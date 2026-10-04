@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Services\ChurnPredictionProvider;
 use App\Services\OpenAiClientFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\Sanctum;
 use Mockery;
 use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
@@ -80,17 +81,18 @@ class PredictiveAnalyticsEndpointTest extends TestCase
     {
         $this->preventProviderInvocation();
 
-        $response = $this
-            ->withHeaders($headers)
-            ->call(
-                'POST',
-                '/api/v1/predict-churn',
-                [],
-                [],
-                [],
-                [],
-                json_encode($this->validPayload(), JSON_THROW_ON_ERROR),
-            );
+        $response = $this->call(
+            'POST',
+            '/api/v1/predict-churn',
+            [],
+            [],
+            [],
+            $this->transformHeadersToServerVars($headers),
+            json_encode($this->validPayload(), JSON_THROW_ON_ERROR),
+        );
+
+        $this->assertSame($headers['Accept'] ?? null, $response->baseRequest->headers->get('Accept'));
+        $this->assertSame('application/json', $response->baseRequest->headers->get('Content-Type'));
 
         $response
             ->assertUnauthorized()
@@ -151,6 +153,51 @@ class PredictiveAnalyticsEndpointTest extends TestCase
             ->postJson('/api/v1/predict-churn', $this->validPayload());
 
         $revoked->assertUnauthorized();
+    }
+
+    public function test_authenticated_users_have_independent_throttle_buckets(): void
+    {
+        $firstUser = User::factory()->create();
+        $secondUser = User::factory()->create();
+        $firstToken = $firstUser->createToken('first-user')->plainTextToken;
+        $secondToken = $secondUser->createToken('second-user')->plainTextToken;
+
+        $provider = Mockery::mock(ChurnPredictionProvider::class);
+        $provider
+            ->shouldReceive('predict')
+            ->times(11)
+            ->andReturn('78%');
+        $this->app->instance(ChurnPredictionProvider::class, $provider);
+
+        for ($attempt = 0; $attempt < 10; $attempt++) {
+            $this->postWithTokenFromIp($firstToken, '203.0.113.10')->assertOk();
+        }
+
+        $this->app['auth']->forgetGuards();
+
+        $this->postWithTokenFromIp($secondToken, '203.0.113.10')->assertOk();
+    }
+
+    public function test_authenticated_user_throttle_bucket_is_stable_across_ip_changes(): void
+    {
+        $user = User::factory()->create();
+        $token = $user->createToken('stable-user')->plainTextToken;
+
+        $provider = Mockery::mock(ChurnPredictionProvider::class);
+        $provider
+            ->shouldReceive('predict')
+            ->times(10)
+            ->andReturn('78%');
+        $this->app->instance(ChurnPredictionProvider::class, $provider);
+
+        for ($attempt = 0; $attempt < 10; $attempt++) {
+            $this->postWithTokenFromIp($token, '203.0.113.10')->assertOk();
+        }
+
+        $this->app['auth']->forgetGuards();
+
+        $this->postWithTokenFromIp($token, '203.0.113.11')
+            ->assertTooManyRequests();
     }
 
     public function test_malformed_payload_is_rejected_before_provider_invocation(): void
@@ -233,6 +280,14 @@ class PredictiveAnalyticsEndpointTest extends TestCase
         $provider = Mockery::mock(ChurnPredictionProvider::class);
         $provider->shouldReceive('predict')->never();
         $this->app->instance(ChurnPredictionProvider::class, $provider);
+    }
+
+    private function postWithTokenFromIp(string $token, string $ip): TestResponse
+    {
+        return $this
+            ->withServerVariables(['REMOTE_ADDR' => $ip])
+            ->withToken($token)
+            ->postJson('/api/v1/predict-churn', $this->validPayload());
     }
 
     /**
