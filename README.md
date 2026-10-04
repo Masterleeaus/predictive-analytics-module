@@ -1,33 +1,21 @@
 ![Churn Risk Assessment API — EXPERIMENTAL API · LARAVEL](docs/images/portfolio-banner.svg)
 
-# Churn Risk Assessment API
+# Predictive Analytics Module
 
-**An experimental Laravel API for exploring structured churn-risk assessment through an external language-model service.**
+> A Laravel API experiment that accepts five customer signals and returns model-generated text in a stable JSON envelope.
 
-## Product architecture and engineering highlights
+Predictive Analytics Module is a Laravel API experiment for teams exploring how a clean application boundary can connect validated customer data to an external language-model service. A request enters through a small JSON contract, is checked at the controller boundary, transformed into a provider prompt, and returned as model-generated text in a stable JSON envelope that a frontend or downstream workflow can consume.
 
-A Laravel API experiment for structured customer churn-risk assessment, with a clear boundary between request validation and model-assisted inference.
+## What the module delivers
 
-- **Architecture:** The API validates a five-feature JSON input, passes it through an inference service, and returns a predictable JSON response using an OpenAI client.
-- **Distinctive engineering:** The repository demonstrates a reviewable service boundary and API contract; it does not claim a trained statistical or machine-learning model.
+| Capability | Implementation evidence |
+|---|---|
+| Stable request contract | `routes/api.php` exposes `POST /api/predict-churn` with five numeric inputs: age, activity, payment history, and two extensible feature fields. |
+| Explicit validation and prompt construction | `app/Http/Controllers/PredictiveAnalyticsController.php` validates the payload, builds the provider prompt, and owns the response mapping. |
+| Provider integration seam | `openai-php/client` is called behind the controller boundary, leaving a clear seam for a deterministic model or another provider later. |
+| Offline contract evidence | `tests/Feature/PredictiveAnalyticsEndpointTest.php` mocks the provider boundary and checks inputs, request options, and JSON output without live credentials. |
 
-## Overview
-
-This repository is a small Laravel 11 experiment around accepting structured customer attributes, validating them at an API boundary and asking an external model for a churn assessment.
-
-It is important to be precise about what the code currently proves: **this is not a trained statistical forecasting or machine-learning pipeline**. There is no fitted predictive model, feature engineering pipeline, benchmark dataset or quantitative evaluation implementation in the current repository. The existing controller performs prompt-based inference through an OpenAI client.
-
-That makes the project useful as evidence of API integration and as a starting point for data/AI experimentation, but not yet strong evidence of scientific predictive modelling.
-
-## Current Capabilities
-
-- Laravel 11 application structure.
-- REST endpoint for churn-assessment requests.
-- Server-side validation of five numeric input features.
-- OpenAI PHP client integration.
-- JSON API response contract.
-- Laravel database, queue, cache and authentication infrastructure available for extension.
-- PHPUnit/Laravel test tooling included by the application skeleton.
+That combination makes the repository useful as a compact reference for API integration, validation, provider isolation, and an incremental path toward a real data-science pipeline.
 
 ## Architecture
 
@@ -47,7 +35,7 @@ flowchart LR
 | HTTP contract | `routes/api.php` | `POST /api/predict-churn` plus the default Sanctum example route |
 | Validation, prompt and provider call | `app/Http/Controllers/PredictiveAnalyticsController.php` | Five numeric fields are validated, interpolated into a prompt, sent to the OpenAI PHP client, and returned as JSON |
 | Runtime contract | `.env.example` and `env('OPENAI_API_KEY')` | The controller reads the API key directly from the environment |
-| Tests | `tests/Feature/ExampleTest.php`, `tests/Unit/ExampleTest.php`, `tests/Feature/PredictiveAnalyticsEndpointTest.php` | Laravel smoke coverage plus an offline provider-contract test for validation, prompt construction and JSON response; no live provider call is made |
+| Tests | `tests/Feature/ExampleTest.php`, `tests/Unit/ExampleTest.php`, `tests/Feature/PredictiveAnalyticsEndpointTest.php` | Laravel smoke coverage plus an offline happy-path provider-contract test for prompt construction, request options and JSON response; it does not assert invalid-payload handling or make a live provider call |
 
 The current controller uses the OpenAI Completions API with the `gpt-3.5-turbo` model name. The provider-contract test verifies the local validation, prompt and response shape without credentials; compatibility with a current live provider endpoint remains unverified, so treat the external call as an experiment to verify before extending it.
 
@@ -76,7 +64,7 @@ Content-Type: application/json
 }
 ```
 
-The controller validates each value, builds a churn-analysis prompt, sends it to the configured external model and returns the generated assessment in JSON.
+The controller validates each value, builds a churn-analysis prompt, sends it to the configured external model and returns the model-generated text in a stable JSON envelope.
 
 ## Tech Stack
 
@@ -98,7 +86,7 @@ The endpoint does not pass arbitrary request payloads directly to the model. Exp
 The Laravel application provides the HTTP/application layer while the model client provides the external inference mechanism, leaving a natural seam for replacing prompt inference with a deterministic statistical model later.
 
 ### Honest model boundary
-A language model producing a percentage is not equivalent to a calibrated churn model. For scientific or analytics use, the next meaningful engineering step is to introduce a real dataset, reproducible preprocessing, train/evaluation splits, baseline models and quantitative metrics.
+The controller currently trims the provider's text into a `churn_probability` JSON field; it does not parse or calibrate that text as a probability. A language model producing a percentage is not equivalent to a calibrated churn model.
 
 ## Getting Started
 
@@ -135,9 +123,9 @@ tests/                  Laravel test suites
 
 **Experimental.** The API integration exists, but the repository should not be represented as a validated predictive-analytics or scientific modelling system until a real modelling/evaluation pipeline is implemented.
 
-## Recommended Scientific/Data Roadmap
+## Next engineering steps
 
-The highest-value next iteration would add:
+To evolve beyond the current prompt-based endpoint, add:
 
 1. versioned CSV/JSON dataset ingestion;
 2. reproducible preprocessing and missing-data handling;
@@ -147,7 +135,7 @@ The highest-value next iteration would add:
 6. saved experiment metadata and model versioning;
 7. visual evaluation reports.
 
-Those additions would turn the repository from an AI API experiment into credible data-science evidence.
+These additions would establish a reproducible modelling and evaluation path.
 
 ## License
 
