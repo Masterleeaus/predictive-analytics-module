@@ -11,10 +11,10 @@ Predictive Analytics Module is a compact Laravel application for exploring the s
 | Capability | Implementation evidence |
 |---|---|
 | Stable request contract | `routes/api.php` exposes authenticated `POST /api/v1/predict-churn` with five numeric inputs: age, activity, payment history, and two extensible feature fields. |
-| Authenticated application boundary | `auth:sanctum` rejects unauthenticated requests before the controller or provider boundary is reached. |
-| Explicit validation and abuse boundary | `app/Http/Controllers/PredictiveAnalyticsController.php` rejects malformed values, negative signals, out-of-range ages, and out-of-range payment scores before provider invocation. |
+| Authenticated application boundary | `auth:sanctum` rejects unauthenticated requests before the controller or provider boundary is reached; the endpoint also uses Laravel's built-in `throttle:10,1` guard. |
+| Explicit validation and abuse boundary | `app/Http/Controllers/PredictiveAnalyticsController.php` rejects malformed, non-finite, exponent-form, oversized, negative, and out-of-range values before provider invocation. |
 | Isolated provider seam | `app/Services/ChurnPredictionProvider.php` owns prompt construction and the OpenAI client call; a missing key disables the external call with a 503 response. |
-| Credential-free contract evidence | `tests/Feature/PredictiveAnalyticsEndpointTest.php` covers the mocked happy path, unauthenticated access, malformed input, out-of-bounds input, and provider-disabled mode. |
+| Credential-free contract evidence | `tests/Feature/PredictiveAnalyticsEndpointTest.php` covers the mocked happy path, real SQLite-backed bearer-token acceptance/revocation, API JSON auth failures, extreme numeric input, malformed input, out-of-bounds input, and provider-disabled mode. |
 
 That combination makes the repository useful as a compact reference for API integration, authentication middleware, request validation, provider isolation, and an incremental path toward a real data-science pipeline.
 
@@ -34,7 +34,7 @@ flowchart LR
     R --> J[JSON API Response]
 ```
 
-The request is rejected at the auth or validation boundary before the external provider is called. The provider boundary also refuses to call OpenAI when `OPENAI_API_KEY` is absent.
+The request is rejected at the auth or validation boundary before the external provider is called. The route has a coarse per-user/IP `throttle:10,1` guard, and the provider boundary refuses to call OpenAI when `OPENAI_API_KEY` is absent.
 
 ## Code map and evidence
 
@@ -42,9 +42,9 @@ The request is rejected at the auth or validation boundary before the external p
 |---|---|---|
 | HTTP contract | `routes/api.php`, `bootstrap/app.php` | `POST /api/v1/predict-churn`; Laravel's API prefix is configured as `api/v1`. |
 | Authentication | `routes/api.php`, `app/Models/User.php` | The endpoint uses Sanctum middleware and the user model includes Sanctum token support. |
-| Validation and response mapping | `app/Http/Controllers/PredictiveAnalyticsController.php` | Five numeric fields are bounded before the provider is resolved for invocation; missing provider configuration is a 503. |
+| Validation and response mapping | `app/Http/Controllers/PredictiveAnalyticsController.php` | Five finite decimal fields are size-bounded and range-checked before the provider is resolved for invocation; missing provider configuration is a 503. |
 | Provider invocation | `app/Services/ChurnPredictionProvider.php`, `config/services.php` | The configured key is read through Laravel configuration, then the OpenAI PHP client receives the validated prompt request. |
-| Tests and CI | `tests/Feature/PredictiveAnalyticsEndpointTest.php`, `.github/workflows/tests.yml` | The focused suite proves auth, validation, provider non-invocation on rejected input, missing-key behavior, and the mocked provider contract without live credentials. |
+| Tests and CI | `tests/Feature/PredictiveAnalyticsEndpointTest.php`, `.github/workflows/tests.yml`, `.env.testing` | The focused suite proves auth, bearer-token revocation, API JSON error rendering, bounded validation, provider non-invocation on rejected input, missing-key behavior, and the mocked provider contract without live credentials. |
 
 Run the provider-independent contract check with:
 
@@ -103,8 +103,10 @@ This repository uses authenticated application mode. It is not a public syntheti
 
 - The provider currently uses the repository's existing OpenAI Completions call with the `gpt-3.5-turbo` model name. The focused tests mock that contract; compatibility with a current live provider endpoint remains unverified.
 - The response is provider-generated text in a field named `churn_probability`; it is not parsed, calibrated, or backed by a trained statistical model.
-- Authentication now protects the application boundary, but this repository has no tenant or customer ownership model.
+- Authentication now protects the application boundary, but this repository has no tenant or customer ownership model. The built-in `throttle:10,1` middleware is a coarse per-user/IP cost guard, not tenant isolation or a complete abuse-prevention system.
 - The provider key is read from configuration and is never returned in the API response. Missing configuration disables the external call.
+- Request values are restricted to finite decimal notation with bounded whole/fractional lengths and application safety caps; this is an input-safety policy, not model calibration.
+- The mocked `gpt-3.5-turbo` plus legacy Completions pairing remains unverified for live use and has an announced 2026-10-23 shutdown window. Queue provider migration before live reliance; this patch intentionally does not guess a replacement or make live calls.
 - No benchmark dataset, model evaluation, production deployment, or clinical/financial decision claim is made.
 
 ## Getting started
