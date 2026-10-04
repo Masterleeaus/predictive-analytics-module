@@ -1,10 +1,14 @@
-![Churn Risk Assessment API — EXPERIMENTAL API · LARAVEL](docs/images/portfolio-banner.svg)
+![Churn Risk Assessment API — experimental Laravel API with validation, prompt construction, external model call, and JSON response](docs/images/predictive-analytics-banner.svg)
 
 # Churn Risk Assessment API
 
 **An experimental Laravel API for exploring structured churn-risk assessment through an external language-model service.**
 
 ## Product architecture and engineering highlights
+
+<p align="center">
+  <img src="docs/images/predictive-analytics-architecture.svg" alt="Predictive Analytics Module flow from five-feature request validation to prompt construction, external model call, and JSON response." width="100%" />
+</p>
 
 A Laravel API experiment for structured customer churn-risk assessment, with a clear boundary between request validation and model-assisted inference.
 
