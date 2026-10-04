@@ -1,4 +1,4 @@
-![Churn Risk Assessment API - EXPERIMENTAL API � LARAVEL](docs/images/portfolio-banner.svg)
+![Churn Risk Assessment API — EXPERIMENTAL API · LARAVEL](docs/images/portfolio-banner.svg)
 
 # Churn Risk Assessment API
 
@@ -151,4 +151,3 @@ The Composer project metadata declares MIT. No standalone `LICENSE` file is curr
 
 **Jason Lee**  
 GitHub: [@Masterleeaus](https://github.com/Masterleeaus)
-
