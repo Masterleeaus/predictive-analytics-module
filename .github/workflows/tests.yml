@@ -25,6 +25,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Prepare safe test environment
+        run: cp .env.testing .env
+
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
