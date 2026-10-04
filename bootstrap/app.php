@@ -3,7 +3,6 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -18,14 +17,9 @@ return Application::configure(basePath: dirname(__DIR__))
         //
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        // All auth:sanctum routes in this application are under api/v1.
-        $exceptions->renderable(function (AuthenticationException $exception) {
-            return response()->json([
-                'message' => 'Unauthenticated.',
-            ], 401);
-        });
-
         $exceptions->shouldRenderJsonWhen(function (Request $request, \Throwable $throwable): bool {
-            return str_starts_with($request->getPathInfo(), '/api/v1/') || $request->expectsJson();
+            $path = ltrim($request->getPathInfo(), '/');
+
+            return str_starts_with($path, 'api/v1/') || $request->expectsJson();
         });
     })->create();
