@@ -47,9 +47,15 @@ flowchart LR
 | HTTP contract | `routes/api.php` | `POST /api/predict-churn` plus the default Sanctum example route |
 | Validation, prompt and provider call | `app/Http/Controllers/PredictiveAnalyticsController.php` | Five numeric fields are validated, interpolated into a prompt, sent to the OpenAI PHP client, and returned as JSON |
 | Runtime contract | `.env.example` and `env('OPENAI_API_KEY')` | The controller reads the API key directly from the environment |
-| Tests | `tests/Feature/ExampleTest.php`, `tests/Unit/ExampleTest.php` | Laravel home-page smoke coverage and a unit smoke test; no provider-mocked churn endpoint test is present |
+| Tests | `tests/Feature/ExampleTest.php`, `tests/Unit/ExampleTest.php`, `tests/Feature/PredictiveAnalyticsEndpointTest.php` | Laravel smoke coverage plus an offline provider-contract test for validation, prompt construction and JSON response; no live provider call is made |
 
-The current controller uses the OpenAI Completions API with the `gpt-3.5-turbo` model name. Compatibility with a current provider endpoint is not established by the repository's tests, so treat the live call as an experiment to verify before extending it.
+The current controller uses the OpenAI Completions API with the `gpt-3.5-turbo` model name. The provider-contract test verifies the local validation, prompt and response shape without credentials; compatibility with a current live provider endpoint remains unverified, so treat the external call as an experiment to verify before extending it.
+
+Run the provider-independent contract check with:
+
+```bash
+php artisan test --filter=PredictiveAnalyticsEndpointTest
+```
 
 ## Example Workflow
 
