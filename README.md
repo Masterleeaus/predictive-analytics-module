@@ -4,9 +4,61 @@
 
 > A Laravel API experiment that accepts five customer signals and returns model-generated text in a stable JSON envelope.
 
+## Overview
+
 Predictive Analytics Module is a compact Laravel application for exploring the seam between an authenticated API, validated customer-like signals, and an external language-model provider. A request passes through Sanctum authentication and bounded input validation, is converted into a provider prompt, and returns model-generated text in a stable JSON envelope for a frontend or downstream workflow.
 
-## What the module delivers
+
+## Measured evidence
+
+This repository does **not** claim a validated churn model. Its reproducible evidence is the API and provider boundary around an experimental model call.
+
+The focused feature suite contains **11 test methods**, with the authentication-content-negotiation case expanded across three Accept-header variants.
+
+| Tested boundary | Evidence |
+| --- | --- |
+| Mocked provider happy path | validated inputs reach the provider seam and return the expected JSON envelope |
+| Unauthenticated access | rejected before provider invocation |
+| Bearer-token lifecycle | accepted while valid and rejected after token revocation |
+| Per-user throttling | independent user buckets and stable limits across IP changes |
+| Malformed/extreme numeric input | rejected before provider invocation |
+| Missing provider key | returns a controlled 503 instead of attempting an external call |
+| JSON auth failures | remain API-shaped even without a JSON Accept header |
+
+Reproduce the credential-free lane with:
+
+```bash
+php artisan test --filter=PredictiveAnalyticsEndpointTest
+```
+
+The CI workflow runs this same focused suite against SQLite with a placeholder test key. It does **not** make a live provider call or establish predictive accuracy.
+
+## What is new
+
+The useful engineering contribution here is **boundary-first model integration**, not prediction quality.
+
+```text
+Authenticated request
+      ↓
+Bounded validation
+      ↓
+Provider configuration check
+      ↓
+External model seam
+      ↓
+Stable API envelope
+```
+
+Rejected requests stop before the provider boundary, making authentication, abuse controls, validation and provider configuration independently testable.
+
+### Evidence status
+
+- **Implemented and tested:** authenticated API contract, throttling, validation, provider isolation and failure behavior.
+- **Experimental:** provider-generated churn text.
+- **Not evaluated:** calibration, predictive accuracy, ranking quality or generalisation.
+- **Not claimed:** a trained churn model, production predictive analytics, tenant isolation or decision-grade probability estimates.
+
+## Verified capabilities
 
 | Capability | Implementation evidence |
 |---|---|
