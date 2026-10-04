@@ -4,44 +4,47 @@
 
 > A Laravel API experiment that accepts five customer signals and returns model-generated text in a stable JSON envelope.
 
-Predictive Analytics Module is a Laravel API experiment for teams exploring how a clean application boundary can connect validated customer data to an external language-model service. A request enters through a small JSON contract, is checked at the controller boundary, transformed into a provider prompt, and returned as model-generated text in a stable JSON envelope that a frontend or downstream workflow can consume.
+Predictive Analytics Module is a compact Laravel application for exploring the seam between an authenticated API, validated customer-like signals, and an external language-model provider. A request passes through Sanctum authentication and bounded input validation, is converted into a provider prompt, and returns model-generated text in a stable JSON envelope for a frontend or downstream workflow.
 
 ## What the module delivers
 
 | Capability | Implementation evidence |
 |---|---|
-| Stable request contract | `routes/api.php` exposes `POST /api/predict-churn` with five numeric inputs: age, activity, payment history, and two extensible feature fields. |
-| Explicit validation and prompt construction | `app/Http/Controllers/PredictiveAnalyticsController.php` validates the payload, builds the provider prompt, and owns the response mapping. |
-| Provider integration seam | `openai-php/client` is called behind the controller boundary, leaving a clear seam for a deterministic model or another provider later. |
-| Offline contract evidence | `tests/Feature/PredictiveAnalyticsEndpointTest.php` mocks the provider boundary and checks inputs, request options, and JSON output without live credentials. |
+| Stable request contract | `routes/api.php` exposes authenticated `POST /api/v1/predict-churn` with five numeric inputs: age, activity, payment history, and two extensible feature fields. |
+| Authenticated application boundary | `auth:sanctum` rejects unauthenticated requests before the controller or provider boundary is reached. |
+| Explicit validation and abuse boundary | `app/Http/Controllers/PredictiveAnalyticsController.php` rejects malformed values, negative signals, out-of-range ages, and out-of-range payment scores before provider invocation. |
+| Isolated provider seam | `app/Services/ChurnPredictionProvider.php` owns prompt construction and the OpenAI client call; a missing key disables the external call with a 503 response. |
+| Credential-free contract evidence | `tests/Feature/PredictiveAnalyticsEndpointTest.php` covers the mocked happy path, unauthenticated access, malformed input, out-of-bounds input, and provider-disabled mode. |
 
-That combination makes the repository useful as a compact reference for API integration, validation, provider isolation, and an incremental path toward a real data-science pipeline.
+That combination makes the repository useful as a compact reference for API integration, authentication middleware, request validation, provider isolation, and an incremental path toward a real data-science pipeline.
 
 <p align="center">
-  <img src="docs/images/predictive-analytics-architecture.svg" alt="Predictive Analytics Module flow from validated request through prompt construction and external model call to JSON response." width="100%" />
+  <img src="docs/images/predictive-analytics-architecture.svg" alt="Predictive Analytics Module flow from authenticated request through validation and provider boundary to JSON response." width="100%" />
 </p>
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    C[API Client] --> V[Laravel Request Validation]
-    V --> P[Prompt Construction]
+    C[API Client] --> A[Sanctum Auth]
+    A --> V[Laravel Validation]
+    V --> P[Provider Boundary]
     P --> O[OpenAI Client]
     O --> R[Model Response]
     R --> J[JSON API Response]
 ```
 
+The request is rejected at the auth or validation boundary before the external provider is called. The provider boundary also refuses to call OpenAI when `OPENAI_API_KEY` is absent.
+
 ## Code map and evidence
 
 | Concern | Location | What is actually implemented |
 |---|---|---|
-| HTTP contract | `routes/api.php` | `POST /api/predict-churn` plus the default Sanctum example route |
-| Validation, prompt and provider call | `app/Http/Controllers/PredictiveAnalyticsController.php` | Five numeric fields are validated, interpolated into a prompt, sent to the OpenAI PHP client, and returned as JSON |
-| Runtime contract | `.env.example` and `env('OPENAI_API_KEY')` | The controller reads the API key directly from the environment |
-| Tests | `tests/Feature/ExampleTest.php`, `tests/Unit/ExampleTest.php`, `tests/Feature/PredictiveAnalyticsEndpointTest.php` | Laravel smoke coverage plus an offline happy-path provider-contract test for prompt construction, request options and JSON response; it does not assert invalid-payload handling or make a live provider call |
-
-The current controller uses the OpenAI Completions API with the `gpt-3.5-turbo` model name. The provider-contract test verifies the local validation, prompt and response shape without credentials; compatibility with a current live provider endpoint remains unverified, so treat the external call as an experiment to verify before extending it.
+| HTTP contract | `routes/api.php`, `bootstrap/app.php` | `POST /api/v1/predict-churn`; Laravel's API prefix is configured as `api/v1`. |
+| Authentication | `routes/api.php`, `app/Models/User.php` | The endpoint uses Sanctum middleware and the user model includes Sanctum token support. |
+| Validation and response mapping | `app/Http/Controllers/PredictiveAnalyticsController.php` | Five numeric fields are bounded before the provider is resolved for invocation; missing provider configuration is a 503. |
+| Provider invocation | `app/Services/ChurnPredictionProvider.php`, `config/services.php` | The configured key is read through Laravel configuration, then the OpenAI PHP client receives the validated prompt request. |
+| Tests and CI | `tests/Feature/PredictiveAnalyticsEndpointTest.php`, `.github/workflows/tests.yml` | The focused suite proves auth, validation, provider non-invocation on rejected input, missing-key behavior, and the mocked provider contract without live credentials. |
 
 Run the provider-independent contract check with:
 
@@ -49,12 +52,15 @@ Run the provider-independent contract check with:
 php artisan test --filter=PredictiveAnalyticsEndpointTest
 ```
 
-## Example Workflow
+The CI lane runs the same command with SQLite in-memory configuration and a placeholder test key. It does not claim live-model compatibility.
 
-Request:
+## Example workflow
+
+The route is an authenticated application endpoint:
 
 ```http
-POST /api/predict-churn
+POST /api/v1/predict-churn
+Authorization: Bearer <Sanctum token>
 Content-Type: application/json
 ```
 
@@ -68,38 +74,47 @@ Content-Type: application/json
 }
 ```
 
-The controller validates each value, builds a churn-analysis prompt, sends it to the configured external model and returns the model-generated text in a stable JSON envelope.
+The controller validates each value, the provider service constructs a churn-analysis prompt, and the configured external model returns text in this response envelope:
 
-## Tech Stack
+```json
+{
+  "success": true,
+  "churn_probability": "78%"
+}
+```
+
+## Current product-policy decision
+
+This repository uses authenticated application mode. It is not a public synthetic demo, and the application does not include a public token-issuance flow. The current ownership scope is authenticated-user access only: there is no persisted customer-to-user relationship, tenant model, or tenant-isolation guarantee. Do not send real customer data through this experiment until those ownership, retention, and provider controls are designed.
+
+## Tech stack
 
 | Area | Technology |
 |---|---|
 | Language | PHP 8.2+ |
 | Backend | Laravel 11 |
-| API | Laravel routing/controllers |
-| Data | Laravel database layer; SQLite supported by the default application setup |
-| AI | `openai-php/client` |
-| Testing | PHPUnit 11 |
+| API | Laravel routing/controllers and Sanctum middleware |
+| Data | Laravel database layer; SQLite is used by the focused test lane |
+| AI integration | `openai-php/client` |
+| Testing | PHPUnit 11, Mockery |
+| CI | GitHub Actions with credential-free focused tests |
 
-## Engineering Highlights
+## Engineering tradeoffs and limitations
 
-### Explicit API validation
-The endpoint does not pass arbitrary request payloads directly to the model. Expected features are defined as numeric inputs at the Laravel validation boundary.
+- The provider currently uses the repository's existing OpenAI Completions call with the `gpt-3.5-turbo` model name. The focused tests mock that contract; compatibility with a current live provider endpoint remains unverified.
+- The response is provider-generated text in a field named `churn_probability`; it is not parsed, calibrated, or backed by a trained statistical model.
+- Authentication now protects the application boundary, but this repository has no tenant or customer ownership model.
+- The provider key is read from configuration and is never returned in the API response. Missing configuration disables the external call.
+- No benchmark dataset, model evaluation, production deployment, or clinical/financial decision claim is made.
 
-### Clear separation between API and inference service
-The Laravel application provides the HTTP/application layer while the model client provides the external inference mechanism, leaving a natural seam for replacing prompt inference with a deterministic statistical model later.
-
-### Honest model boundary
-The controller currently trims the provider's text into a `churn_probability` JSON field; it does not parse or calibrate that text as a probability. A language model producing a percentage is not equivalent to a calibrated churn model.
-
-## Getting Started
+## Getting started
 
 ### Requirements
 
 - PHP 8.2+
 - Composer
-- Node/npm for the default Laravel frontend tooling
-- OpenAI API credentials for the current inference implementation
+- Node/npm only if using the default Laravel frontend tooling
+- An OpenAI API credential for the live provider path
 
 ```bash
 composer install
@@ -109,37 +124,29 @@ php artisan migrate
 php artisan serve
 ```
 
-Configure the OpenAI credential in the environment before using the churn endpoint.
+Set `OPENAI_API_KEY` in the environment for the live provider path. Never commit the value. The repository does not provide a token-issuance UX; connect the endpoint to the application's existing Sanctum authentication flow before using it.
 
-For example, add `OPENAI_API_KEY=...` to `.env`. Do not commit the value.
+For the deterministic, credential-free check:
 
-## Repository Structure
+```bash
+php artisan test --filter=PredictiveAnalyticsEndpointTest
+```
+
+## Repository structure
 
 ```text
 app/Http/Controllers/   API controller and request flow
-config/                 Laravel application configuration
-database/               Migrations, factories and seeders
-routes/                 HTTP/API routes
+app/Services/            Provider boundary and OpenAI call
+config/                  Laravel application configuration
+database/                Migrations, factories and seeders
+routes/                  HTTP/API routes
 tests/                  Laravel test suites
+.github/workflows/       Credential-free CI lane
 ```
 
 ## Status
 
-**Experimental.** The API integration exists, but the repository should not be represented as a validated predictive-analytics or scientific modelling system until a real modelling/evaluation pipeline is implemented.
-
-## Next engineering steps
-
-To evolve beyond the current prompt-based endpoint, add:
-
-1. versioned CSV/JSON dataset ingestion;
-2. reproducible preprocessing and missing-data handling;
-3. deterministic baseline models;
-4. train/validation/test separation;
-5. calibration and metrics such as ROC-AUC, precision/recall and Brier score;
-6. saved experiment metadata and model versioning;
-7. visual evaluation reports.
-
-These additions would establish a reproducible modelling and evaluation path.
+**Experimental.** The API integration and safety boundary are implemented, but this is not a validated predictive-analytics or scientific modelling system. A real modelling pipeline still needs reproducible data preparation, deterministic baselines, evaluation, calibration, and model versioning.
 
 ## License
 
