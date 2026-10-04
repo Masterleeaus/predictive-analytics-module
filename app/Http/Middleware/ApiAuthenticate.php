@@ -5,11 +5,13 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
 
 class ApiAuthenticate extends Authenticate
 {
-    public function handle(Request $request, Closure $next): Response
+    /**
+     * @param Request $request
+     */
+    public function handle($request, Closure $next, ...$guards)
     {
         try {
             return parent::handle($request, $next, 'sanctum');
