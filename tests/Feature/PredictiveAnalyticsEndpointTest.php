@@ -5,14 +5,16 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Services\ChurnPredictionProvider;
 use App\Services\OpenAiClientFactory;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Mockery;
 use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class PredictiveAnalyticsEndpointTest extends TestCase
 {
-    use MockeryPHPUnitIntegration;
+    use MockeryPHPUnitIntegration, RefreshDatabase;
 
     public function test_churn_endpoint_uses_a_mocked_provider_contract(): void
     {
@@ -66,22 +68,86 @@ class PredictiveAnalyticsEndpointTest extends TestCase
 
     public function test_unauthenticated_requests_are_rejected_before_provider_invocation(): void
     {
-        $provider = Mockery::mock(ChurnPredictionProvider::class);
-        $provider->shouldReceive('predict')->never();
-        $this->app->instance(ChurnPredictionProvider::class, $provider);
+        $this->preventProviderInvocation();
 
         $response = $this->postJson('/api/v1/predict-churn', $this->validPayload());
 
         $response->assertUnauthorized();
     }
 
+    #[DataProvider('nonJsonAcceptHeaders')]
+    public function test_api_auth_failures_return_json_without_json_accept_header(array $headers): void
+    {
+        $this->preventProviderInvocation();
+
+        $response = $this
+            ->withHeaders($headers)
+            ->post('/api/v1/predict-churn', json_encode($this->validPayload(), JSON_THROW_ON_ERROR));
+
+        $response
+            ->assertUnauthorized()
+            ->assertJson([
+                'message' => 'Unauthenticated.',
+            ]);
+    }
+
+    public static function nonJsonAcceptHeaders(): array
+    {
+        return [
+            'missing Accept header' => [
+                ['Content-Type' => 'application/json'],
+            ],
+            'wildcard Accept header' => [
+                [
+                    'Accept' => '*/*',
+                    'Content-Type' => 'application/json',
+                ],
+            ],
+            'HTML Accept header' => [
+                [
+                    'Accept' => 'text/html',
+                    'Content-Type' => 'application/json',
+                ],
+            ],
+        ];
+    }
+
+    public function test_authenticated_bearer_token_is_accepted_until_revoked(): void
+    {
+        $user = User::factory()->create();
+        $accessToken = $user->createToken('regression-token');
+
+        $provider = Mockery::mock(ChurnPredictionProvider::class);
+        $provider
+            ->shouldReceive('predict')
+            ->once()
+            ->andReturn('78%');
+        $this->app->instance(ChurnPredictionProvider::class, $provider);
+
+        $accepted = $this
+            ->withToken($accessToken->plainTextToken)
+            ->postJson('/api/v1/predict-churn', $this->validPayload());
+
+        $accepted
+            ->assertOk()
+            ->assertJson([
+                'success' => true,
+                'churn_probability' => '78%',
+            ]);
+
+        $accessToken->accessToken->delete();
+
+        $revoked = $this
+            ->withToken($accessToken->plainTextToken)
+            ->postJson('/api/v1/predict-churn', $this->validPayload());
+
+        $revoked->assertUnauthorized();
+    }
+
     public function test_malformed_payload_is_rejected_before_provider_invocation(): void
     {
         Sanctum::actingAs(User::factory()->make());
-
-        $provider = Mockery::mock(ChurnPredictionProvider::class);
-        $provider->shouldReceive('predict')->never();
-        $this->app->instance(ChurnPredictionProvider::class, $provider);
+        $this->preventProviderInvocation();
 
         $response = $this->postJson('/api/v1/predict-churn', [
             ...$this->validPayload(),
@@ -93,13 +159,40 @@ class PredictiveAnalyticsEndpointTest extends TestCase
             ->assertJsonValidationErrors(['age']);
     }
 
+    public function test_extreme_exponent_is_rejected_before_range_validation_or_provider_invocation(): void
+    {
+        Sanctum::actingAs(User::factory()->make());
+        $this->preventProviderInvocation();
+
+        $response = $this->postJson('/api/v1/predict-churn', [
+            ...$this->validPayload(),
+            'age' => '1e1001',
+        ]);
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['age']);
+    }
+
+    public function test_oversized_numeric_string_is_rejected_before_range_validation_or_provider_invocation(): void
+    {
+        Sanctum::actingAs(User::factory()->make());
+        $this->preventProviderInvocation();
+
+        $response = $this->postJson('/api/v1/predict-churn', [
+            ...$this->validPayload(),
+            'avg_monthly_activity' => str_repeat('9', 16),
+        ]);
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['avg_monthly_activity']);
+    }
+
     public function test_out_of_bounds_payload_is_rejected_before_provider_invocation(): void
     {
         Sanctum::actingAs(User::factory()->make());
-
-        $provider = Mockery::mock(ChurnPredictionProvider::class);
-        $provider->shouldReceive('predict')->never();
-        $this->app->instance(ChurnPredictionProvider::class, $provider);
+        $this->preventProviderInvocation();
 
         $response = $this->postJson('/api/v1/predict-churn', [
             ...$this->validPayload(),
@@ -124,6 +217,13 @@ class PredictiveAnalyticsEndpointTest extends TestCase
                 'success' => false,
                 'message' => 'Prediction provider is not configured.',
             ]);
+    }
+
+    private function preventProviderInvocation(): void
+    {
+        $provider = Mockery::mock(ChurnPredictionProvider::class);
+        $provider->shouldReceive('predict')->never();
+        $this->app->instance(ChurnPredictionProvider::class, $provider);
     }
 
     /**
