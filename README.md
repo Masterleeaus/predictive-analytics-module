@@ -1,33 +1,21 @@
 ![Churn Risk Assessment API — EXPERIMENTAL API · LARAVEL](docs/images/portfolio-banner.svg)
 
-# Churn Risk Assessment API
+# Predictive Analytics Module
 
-**An experimental Laravel API for exploring structured churn-risk assessment through an external language-model service.**
+> Churn Risk Assessment API for turning five customer signals into a structured, model-assisted churn assessment.
 
-## Product architecture and engineering highlights
+Predictive Analytics Module is a Laravel API experiment for teams exploring how a clean application boundary can connect validated customer data to an external language-model service. A request enters through a small JSON contract, is checked at the controller boundary, transformed into a provider prompt, and returned as a predictable response that a frontend or downstream workflow can consume.
 
-A Laravel API experiment for structured customer churn-risk assessment, with a clear boundary between request validation and model-assisted inference.
+## What the module delivers
 
-- **Architecture:** The API validates a five-feature JSON input, passes it through an inference service, and returns a predictable JSON response using an OpenAI client.
-- **Distinctive engineering:** The repository demonstrates a reviewable service boundary and API contract; it does not claim a trained statistical or machine-learning model.
+| Capability | Implementation evidence |
+|---|---|
+| Stable request contract | `routes/api.php` exposes `POST /api/predict-churn` with five numeric inputs: age, activity, payment history, and two extensible feature fields. |
+| Explicit validation and prompt construction | `app/Http/Controllers/PredictiveAnalyticsController.php` validates the payload, builds the provider prompt, and owns the response mapping. |
+| Provider integration seam | `openai-php/client` is called behind the controller boundary, leaving a clear seam for a deterministic model or another provider later. |
+| Offline contract evidence | `tests/Feature/PredictiveAnalyticsEndpointTest.php` mocks the provider boundary and checks inputs, request options, and JSON output without live credentials. |
 
-## Overview
-
-This repository is a small Laravel 11 experiment around accepting structured customer attributes, validating them at an API boundary and asking an external model for a churn assessment.
-
-It is important to be precise about what the code currently proves: **this is not a trained statistical forecasting or machine-learning pipeline**. There is no fitted predictive model, feature engineering pipeline, benchmark dataset or quantitative evaluation implementation in the current repository. The existing controller performs prompt-based inference through an OpenAI client.
-
-That makes the project useful as evidence of API integration and as a starting point for data/AI experimentation, but not yet strong evidence of scientific predictive modelling.
-
-## Current Capabilities
-
-- Laravel 11 application structure.
-- REST endpoint for churn-assessment requests.
-- Server-side validation of five numeric input features.
-- OpenAI PHP client integration.
-- JSON API response contract.
-- Laravel database, queue, cache and authentication infrastructure available for extension.
-- PHPUnit/Laravel test tooling included by the application skeleton.
+That combination makes the repository useful as a compact reference for API integration, validation, provider isolation, and an incremental path toward a real data-science pipeline.
 
 ## Architecture
 
