@@ -1,4 +1,4 @@
-![Churn Risk Assessment API — EXPERIMENTAL API · LARAVEL](docs/images/portfolio-banner.svg)
+![Churn Risk Assessment API - EXPERIMENTAL API � LARAVEL](docs/images/portfolio-banner.svg)
 
 # Churn Risk Assessment API
 
@@ -39,6 +39,17 @@ flowchart LR
     O --> R[Model Response]
     R --> J[JSON API Response]
 ```
+
+## Code map and evidence
+
+| Concern | Location | What is actually implemented |
+|---|---|---|
+| HTTP contract | `routes/api.php` | `POST /api/predict-churn` plus the default Sanctum example route |
+| Validation, prompt and provider call | `app/Http/Controllers/PredictiveAnalyticsController.php` | Five numeric fields are validated, interpolated into a prompt, sent to the OpenAI PHP client, and returned as JSON |
+| Runtime contract | `.env.example` and `env('OPENAI_API_KEY')` | The controller reads the API key directly from the environment |
+| Tests | `tests/Feature/ExampleTest.php`, `tests/Unit/ExampleTest.php` | Laravel home-page smoke coverage and a unit smoke test; no provider-mocked churn endpoint test is present |
+
+The current controller uses the OpenAI Completions API with the `gpt-3.5-turbo` model name. Compatibility with a current provider endpoint is not established by the repository's tests, so treat the live call as an experiment to verify before extending it.
 
 ## Example Workflow
 
@@ -102,6 +113,8 @@ php artisan serve
 
 Configure the OpenAI credential in the environment before using the churn endpoint.
 
+For example, add `OPENAI_API_KEY=...` to `.env`. Do not commit the value.
+
 ## Repository Structure
 
 ```text
@@ -138,3 +151,4 @@ The Composer project metadata declares MIT. No standalone `LICENSE` file is curr
 
 **Jason Lee**  
 GitHub: [@Masterleeaus](https://github.com/Masterleeaus)
+
