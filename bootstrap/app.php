@@ -18,18 +18,11 @@ return Application::configure(basePath: dirname(__DIR__))
         //
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        $exceptions->renderable(function (AuthenticationException $exception, Request $request) {
-            $route = $request->route();
-            $routeUri = is_object($route) ? $route->uri() : '';
-
-            if (
-                str_starts_with($routeUri, 'api/v1/')
-                || str_starts_with($request->getPathInfo(), '/api/v1/')
-            ) {
-                return response()->json([
-                    'message' => 'Unauthenticated.',
-                ], 401);
-            }
+        // All auth:sanctum routes in this application are under api/v1.
+        $exceptions->renderable(function (AuthenticationException $exception) {
+            return response()->json([
+                'message' => 'Unauthenticated.',
+            ], 401);
         });
 
         $exceptions->shouldRenderJsonWhen(function (Request $request, \Throwable $throwable): bool {
