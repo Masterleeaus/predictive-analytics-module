@@ -18,6 +18,6 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->shouldRenderJsonWhen(function (Request $request, \Throwable $throwable): bool {
-            return $request->is('api/*') || $request->expectsJson();
+            return str_starts_with($request->getPathInfo(), '/api/') || $request->expectsJson();
         });
     })->create();
