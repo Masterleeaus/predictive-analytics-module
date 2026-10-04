@@ -3,10 +3,13 @@
 namespace Tests\Feature;
 
 use Mockery;
+use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 use Tests\TestCase;
 
 class PredictiveAnalyticsEndpointTest extends TestCase
 {
+    use MockeryPHPUnitIntegration;
+
     public function test_churn_endpoint_uses_a_mocked_provider_contract(): void
     {
         $completions = Mockery::mock();
