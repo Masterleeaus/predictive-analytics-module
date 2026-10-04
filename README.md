@@ -2,9 +2,9 @@
 
 # Predictive Analytics Module
 
-> Churn Risk Assessment API for turning five customer signals into a structured, model-assisted churn assessment.
+> A Laravel API experiment that accepts five customer signals and returns model-generated text in a stable JSON envelope.
 
-Predictive Analytics Module is a Laravel API experiment for teams exploring how a clean application boundary can connect validated customer data to an external language-model service. A request enters through a small JSON contract, is checked at the controller boundary, transformed into a provider prompt, and returned as a predictable response that a frontend or downstream workflow can consume.
+Predictive Analytics Module is a Laravel API experiment for teams exploring how a clean application boundary can connect validated customer data to an external language-model service. A request enters through a small JSON contract, is checked at the controller boundary, transformed into a provider prompt, and returned as model-generated text in a stable JSON envelope that a frontend or downstream workflow can consume.
 
 ## What the module delivers
 
@@ -35,7 +35,7 @@ flowchart LR
 | HTTP contract | `routes/api.php` | `POST /api/predict-churn` plus the default Sanctum example route |
 | Validation, prompt and provider call | `app/Http/Controllers/PredictiveAnalyticsController.php` | Five numeric fields are validated, interpolated into a prompt, sent to the OpenAI PHP client, and returned as JSON |
 | Runtime contract | `.env.example` and `env('OPENAI_API_KEY')` | The controller reads the API key directly from the environment |
-| Tests | `tests/Feature/ExampleTest.php`, `tests/Unit/ExampleTest.php`, `tests/Feature/PredictiveAnalyticsEndpointTest.php` | Laravel smoke coverage plus an offline provider-contract test for validation, prompt construction and JSON response; no live provider call is made |
+| Tests | `tests/Feature/ExampleTest.php`, `tests/Unit/ExampleTest.php`, `tests/Feature/PredictiveAnalyticsEndpointTest.php` | Laravel smoke coverage plus an offline happy-path provider-contract test for prompt construction, request options and JSON response; it does not assert invalid-payload handling or make a live provider call |
 
 The current controller uses the OpenAI Completions API with the `gpt-3.5-turbo` model name. The provider-contract test verifies the local validation, prompt and response shape without credentials; compatibility with a current live provider endpoint remains unverified, so treat the external call as an experiment to verify before extending it.
 
@@ -64,7 +64,7 @@ Content-Type: application/json
 }
 ```
 
-The controller validates each value, builds a churn-analysis prompt, sends it to the configured external model and returns the generated assessment in JSON.
+The controller validates each value, builds a churn-analysis prompt, sends it to the configured external model and returns the model-generated text in a stable JSON envelope.
 
 ## Tech Stack
 
@@ -86,7 +86,7 @@ The endpoint does not pass arbitrary request payloads directly to the model. Exp
 The Laravel application provides the HTTP/application layer while the model client provides the external inference mechanism, leaving a natural seam for replacing prompt inference with a deterministic statistical model later.
 
 ### Honest model boundary
-A language model producing a percentage is not equivalent to a calibrated churn model. For scientific or analytics use, the next meaningful engineering step is to introduce a real dataset, reproducible preprocessing, train/evaluation splits, baseline models and quantitative metrics.
+The controller currently trims the provider's text into a `churn_probability` JSON field; it does not parse or calibrate that text as a probability. A language model producing a percentage is not equivalent to a calibrated churn model.
 
 ## Getting Started
 
@@ -123,9 +123,9 @@ tests/                  Laravel test suites
 
 **Experimental.** The API integration exists, but the repository should not be represented as a validated predictive-analytics or scientific modelling system until a real modelling/evaluation pipeline is implemented.
 
-## Recommended Scientific/Data Roadmap
+## Next engineering steps
 
-The highest-value next iteration would add:
+To evolve beyond the current prompt-based endpoint, add:
 
 1. versioned CSV/JSON dataset ingestion;
 2. reproducible preprocessing and missing-data handling;
@@ -135,7 +135,7 @@ The highest-value next iteration would add:
 6. saved experiment metadata and model versioning;
 7. visual evaluation reports.
 
-Those additions would turn the repository from an AI API experiment into credible data-science evidence.
+These additions would establish a reproducible modelling and evaluation path.
 
 ## License
 
