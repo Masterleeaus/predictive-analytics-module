@@ -82,7 +82,15 @@ class PredictiveAnalyticsEndpointTest extends TestCase
 
         $response = $this
             ->withHeaders($headers)
-            ->post('/api/v1/predict-churn', json_encode($this->validPayload(), JSON_THROW_ON_ERROR));
+            ->call(
+                'POST',
+                '/api/v1/predict-churn',
+                [],
+                [],
+                [],
+                [],
+                json_encode($this->validPayload(), JSON_THROW_ON_ERROR),
+            );
 
         $response
             ->assertUnauthorized()
@@ -136,6 +144,7 @@ class PredictiveAnalyticsEndpointTest extends TestCase
             ]);
 
         $accessToken->accessToken->delete();
+        $this->app['auth']->forgetGuards();
 
         $revoked = $this
             ->withToken($accessToken->plainTextToken)
