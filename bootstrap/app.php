@@ -19,7 +19,13 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->renderable(function (AuthenticationException $exception, Request $request) {
-            if (str_starts_with($request->getPathInfo(), '/api/')) {
+            $route = $request->route();
+            $routeUri = is_object($route) ? $route->uri() : '';
+
+            if (
+                str_starts_with($routeUri, 'api/v1/')
+                || str_starts_with($request->getPathInfo(), '/api/v1/')
+            ) {
                 return response()->json([
                     'message' => 'Unauthenticated.',
                 ], 401);
@@ -27,6 +33,6 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->shouldRenderJsonWhen(function (Request $request, \Throwable $throwable): bool {
-            return str_starts_with($request->getPathInfo(), '/api/') || $request->expectsJson();
+            return str_starts_with($request->getPathInfo(), '/api/v1/') || $request->expectsJson();
         });
     })->create();
