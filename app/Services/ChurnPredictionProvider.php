@@ -2,10 +2,13 @@
 
 namespace App\Services;
 
-use OpenAI;
-
 class ChurnPredictionProvider
 {
+    public function __construct(
+        private readonly OpenAiClientFactory $clientFactory,
+    ) {
+    }
+
     /**
      * Call the configured provider for a validated set of churn signals.
      *
@@ -34,7 +37,8 @@ class ChurnPredictionProvider
         Return the churn probability as a percentage (e.g., 78%).
         ";
 
-        $response = OpenAI::client($apiKey)
+        $response = $this->clientFactory
+            ->make($apiKey)
             ->completions()
             ->create([
                 'model' => 'gpt-3.5-turbo',
