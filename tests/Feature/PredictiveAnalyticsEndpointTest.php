@@ -81,13 +81,19 @@ class PredictiveAnalyticsEndpointTest extends TestCase
     {
         $this->preventProviderInvocation();
 
+        $server = $this->transformHeadersToServerVars($headers);
+
+        if (!array_key_exists('Accept', $headers)) {
+            $server['HTTP_ACCEPT'] = null;
+        }
+
         $response = $this->call(
             'POST',
             '/api/v1/predict-churn',
             [],
             [],
             [],
-            $this->transformHeadersToServerVars($headers),
+            $server,
             json_encode($this->validPayload(), JSON_THROW_ON_ERROR),
         );
 
