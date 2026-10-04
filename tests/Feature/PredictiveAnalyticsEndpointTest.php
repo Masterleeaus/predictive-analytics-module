@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Services\ChurnPredictionProvider;
+use App\Services\OpenAiClientFactory;
 use Laravel\Sanctum\Sanctum;
 use Mockery;
 use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
@@ -43,12 +44,14 @@ class PredictiveAnalyticsEndpointTest extends TestCase
             ->once()
             ->andReturn($completions);
 
-        Mockery::mock('alias:OpenAI')
-            ->shouldReceive('client')
+        $factory = Mockery::mock(OpenAiClientFactory::class);
+        $factory
+            ->shouldReceive('make')
             ->once()
             ->with('test-key')
             ->andReturn($client);
 
+        $this->app->instance(OpenAiClientFactory::class, $factory);
         config(['services.openai.key' => 'test-key']);
 
         $response = $this->postJson('/api/v1/predict-churn', $this->validPayload());
