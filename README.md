@@ -1,4 +1,4 @@
-![Churn Risk Assessment API — EXPERIMENTAL API · LARAVEL](docs/images/portfolio-banner.svg)
+![Churn Risk Assessment API — experimental Laravel API with validation, prompt construction, external model call, and JSON response](docs/images/predictive-analytics-banner.svg)
 
 # Predictive Analytics Module
 
@@ -16,6 +16,10 @@ Predictive Analytics Module is a Laravel API experiment for teams exploring how 
 | Offline contract evidence | `tests/Feature/PredictiveAnalyticsEndpointTest.php` mocks the provider boundary and checks inputs, request options, and JSON output without live credentials. |
 
 That combination makes the repository useful as a compact reference for API integration, validation, provider isolation, and an incremental path toward a real data-science pipeline.
+
+<p align="center">
+  <img src="docs/images/predictive-analytics-architecture.svg" alt="Predictive Analytics Module flow from validated request through prompt construction and external model call to JSON response." width="100%" />
+</p>
 
 ## Architecture
 
